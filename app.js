@@ -901,24 +901,19 @@ async function login(email, password) {
   render();
 }
 
-function resetPassword(email, password) {
+function resetPassword(email) {
   if (window.ITPWA_SUPABASE?.url && window.ITPWA_SUPABASE?.publishableKey) {
     window.supabaseBackendReady.then(async (backend) => {
       try {
         await backend.resetPassword(email);
-        renderAuth("login", "パスワード再設定用のメールを送信しました。", "success");
+        renderAuth("login", "再設定メールを送信しました。メール内のリンクから新しいパスワードを設定してください。", "success");
       } catch (error) {
         renderAuth("reset", error.message);
       }
     });
     return;
   }
-  const normalized = email.trim().toLowerCase();
-  const auth = state.auth.find((item) => item.email === normalized);
-  if (!auth) return renderAuth("reset", "登録済みのメールが見つかりません。");
-  auth.passwordHash = demoHash(password);
-  saveState();
-  renderAuth("login", "パスワードを再設定しました。新しいパスワードでログインしてください。", "success");
+  renderAuth("reset", "現在、メールによる再設定機能を利用できません。");
 }
 
 function renderStudent() {
@@ -3162,9 +3157,10 @@ function authForm(active, message, type = "error") {
     return `
       <form class="form-grid" id="reset-form">
         ${messageHtml}
-        <div class="field"><label>学校メール</label><input name="email" required placeholder="vwb0000@sankogakuen.jp"></div>
-        <div class="field"><label>新しいパスワード</label>${passwordInput("password", { required: true, minlength: 8 })}</div>
-        <button class="button full">パスワードを再設定</button>
+        <p class="hint">学校メールへパスワード再設定リンクを送ります。移行後の初回ログインや、パスワードを忘れた場合に利用してください。</p>
+        <div class="field"><label>学校メール</label><input name="email" type="email" required autocomplete="email" placeholder="vwb0000@sankogakuen.jp"></div>
+        <button class="button full" type="submit">再設定メールを送る</button>
+        <p class="hint">届いたリンクを開き、新しいパスワードを設定してください。</p>
       </form>
     `;
   }
@@ -3219,7 +3215,10 @@ function bindAuth(active) {
     document.querySelector("#reset-form")?.addEventListener("submit", (event) => {
       event.preventDefault();
       const data = Object.fromEntries(new FormData(event.currentTarget));
-      resetPassword(data.email, data.password);
+      const button = event.currentTarget.querySelector("button[type='submit']");
+      button.disabled = true;
+      button.textContent = "送信中...";
+      resetPassword(data.email);
     });
   }
 }
@@ -4042,7 +4041,7 @@ function renderPasswordRecovery(message = "") {
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js?v=20260609-first-guide", { updateViaCache: "none" })
+    navigator.serviceWorker.register("./sw.js?v=20260612-password-recovery", { updateViaCache: "none" })
       .then((registration) => registration.update())
       .catch(() => {});
   });

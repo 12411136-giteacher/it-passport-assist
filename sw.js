@@ -1,4 +1,4 @@
-const CACHE_NAME = "it-passport-first-guide-v1";
+const CACHE_NAME = "it-passport-password-recovery-v1";
 const STATIC_ASSETS = [
   "./manifest.webmanifest",
   "./icons/icon-192.svg",

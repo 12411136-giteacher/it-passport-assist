@@ -58,7 +58,9 @@ async function request(path, options = {}) {
   }
   if (!response.ok) {
     const rawMessage = data?.msg || data?.message || data?.error_description || data?.error || "";
-    const message = data?.code === "23505" && String(data?.details || rawMessage).includes("class_id")
+    const message = rawMessage === "email rate limit exceeded"
+      ? "現在メールの送信上限に達しています。しばらく待ってからもう一度お試しください。"
+      : data?.code === "23505" && String(data?.details || rawMessage).includes("class_id")
       ? "このクラスと出席番号は、すでに別の学生が使用しています。クラスと出席番号を確認してください。"
       : rawMessage === "Invalid login credentials"
       ? "メールアドレスまたはパスワードが違います。Supabaseへのアカウント移行が済んでいるか確認してください。"
@@ -260,10 +262,14 @@ async function signOut() {
 }
 
 async function resetPassword(email) {
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+  if (!/^vwb[^@]*@sankogakuen\.jp$/i.test(normalizedEmail)) {
+    throw new Error("学校メールアドレスを入力してください。");
+  }
   await request("/auth/v1/recover", {
     method: "POST",
     body: JSON.stringify({
-      email: String(email || "").trim().toLowerCase(),
+      email: normalizedEmail,
       redirect_to: window.location.origin + window.location.pathname
     })
   });
