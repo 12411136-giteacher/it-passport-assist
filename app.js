@@ -3157,10 +3157,10 @@ function authForm(active, message, type = "error") {
     return `
       <form class="form-grid" id="reset-form">
         ${messageHtml}
-        <p class="hint">学校メールへパスワード再設定リンクを送ります。移行後の初回ログインや、パスワードを忘れた場合に利用してください。</p>
-        <div class="field"><label>学校メール</label><input name="email" type="email" required autocomplete="email" placeholder="vwb0000@sankogakuen.jp"></div>
+        <p class="hint">登録済みメールへパスワード再設定リンクを送ります。移行後の初回ログインや、パスワードを忘れた場合に利用してください。</p>
+        <div class="field"><label>学校メール</label><input name="email" type="email" required autocomplete="email" placeholder="vwb0000 または教員コード @sankogakuen.jp"></div>
         <button class="button full" type="submit">再設定メールを送る</button>
-        <p class="hint">届いたリンクを開き、新しいパスワードを設定してください。</p>
+        <p class="hint">学生はvwbから始まるメール、教師は教員コードから始まるメールを入力してください。</p>
       </form>
     `;
   }
@@ -4041,7 +4041,7 @@ function renderPasswordRecovery(message = "") {
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js?v=20260612-password-recovery", { updateViaCache: "none" })
+    navigator.serviceWorker.register("./sw.js?v=20260615-teacher-recovery", { updateViaCache: "none" })
       .then((registration) => registration.update())
       .catch(() => {});
   });

@@ -263,8 +263,8 @@ async function signOut() {
 
 async function resetPassword(email) {
   const normalizedEmail = String(email || "").trim().toLowerCase();
-  if (!/^vwb[^@]*@sankogakuen\.jp$/i.test(normalizedEmail)) {
-    throw new Error("学校メールアドレスを入力してください。");
+  if (!/^(?:vwb[^@]*|\d+)@sankogakuen\.jp$/i.test(normalizedEmail)) {
+    throw new Error("学生メールまたは教員コードのメールアドレスを入力してください。");
   }
   await request("/auth/v1/recover", {
     method: "POST",
