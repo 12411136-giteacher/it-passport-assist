@@ -266,11 +266,12 @@ async function resetPassword(email) {
   if (!/^(?:vwb[^@]*|\d+)@sankogakuen\.jp$/i.test(normalizedEmail)) {
     throw new Error("学生メールまたは教員コードのメールアドレスを入力してください。");
   }
+  const recoveryUrl = "https://12411136-giteacher.github.io/it-passport-assist/";
   await request("/auth/v1/recover", {
     method: "POST",
     body: JSON.stringify({
       email: normalizedEmail,
-      redirect_to: window.location.origin + window.location.pathname
+      redirect_to: recoveryUrl
     })
   });
 }

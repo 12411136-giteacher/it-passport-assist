@@ -4041,7 +4041,7 @@ function renderPasswordRecovery(message = "") {
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js?v=20260615-teacher-recovery", { updateViaCache: "none" })
+    navigator.serviceWorker.register("./sw.js?v=20260615-fixed-recovery-url", { updateViaCache: "none" })
       .then((registration) => registration.update())
       .catch(() => {});
   });
