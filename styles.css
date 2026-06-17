@@ -1530,6 +1530,136 @@ button {
   font-weight: 700;
 }
 
+.student-filter-panel {
+  display: grid;
+  gap: 18px;
+}
+
+.filter-group {
+  display: grid;
+  gap: 8px;
+}
+
+.filter-label {
+  color: var(--muted);
+  font-weight: 700;
+  margin: 0;
+}
+
+.filter-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.filter-chip {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  min-height: 44px;
+  padding: 0 16px;
+}
+
+.filter-chip.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.boost-panel {
+  grid-column: 1 / -1;
+}
+
+.boost-head {
+  align-items: center;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(0, 1fr) 116px;
+}
+
+.readiness-ring {
+  align-items: center;
+  aspect-ratio: 1;
+  background:
+    radial-gradient(circle at center, #fff 58%, transparent 59%),
+    conic-gradient(var(--primary) var(--score), #e8f0ef 0);
+  border-radius: 50%;
+  display: grid;
+  justify-items: center;
+  padding: 14px;
+  text-align: center;
+}
+
+.readiness-ring strong {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.readiness-ring span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.mission-checklist {
+  display: grid;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.mission-checklist span {
+  align-items: center;
+  background: #f6faf9;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: flex;
+  min-height: 42px;
+  padding: 8px 12px;
+}
+
+.mission-checklist span::before {
+  background: var(--primary);
+  border-radius: 50%;
+  content: "";
+  flex: 0 0 8px;
+  height: 8px;
+  margin-right: 10px;
+  width: 8px;
+}
+
+.roadmap-panel {
+  grid-column: 1 / -1;
+}
+
+.roadmap-body {
+  display: grid;
+  gap: 10px;
+}
+
+.roadmap-item {
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  min-height: 46px;
+  padding: 10px 12px;
+}
+
+.roadmap-item.done {
+  background: #f0faf5;
+  border-color: #b9e5cf;
+}
+
+.roadmap-item span {
+  color: var(--muted);
+  font-weight: 700;
+}
+
 .import-box {
   margin-bottom: 16px;
   border: 1px solid var(--line);
@@ -1725,6 +1855,12 @@ tr:last-child td {
 
 .teacher-student-table td:nth-child(4) {
   font-weight: 800;
+}
+
+.teacher-student-table td:nth-child(5) {
+  color: var(--muted);
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .teacher-student-table td:last-child {
