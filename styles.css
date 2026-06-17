@@ -1473,8 +1473,13 @@ button {
 
 @media (max-width: 760px) {
   .analysis-grid,
-  .upload-steps {
+  .upload-steps,
+  .coach-cards {
     grid-template-columns: 1fr;
+  }
+
+  .coach-card {
+    min-height: 0;
   }
 }
 
@@ -1658,6 +1663,40 @@ button {
 .roadmap-item span {
   color: var(--muted);
   font-weight: 700;
+}
+
+.coach-panel {
+  grid-column: 1 / -1;
+}
+
+.coach-lead {
+  color: var(--muted);
+  font-weight: 700;
+  margin: 0 0 14px;
+}
+
+.coach-cards {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.coach-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  min-height: 190px;
+  padding: 14px;
+}
+
+.coach-card strong {
+  font-size: 18px;
+}
+
+.coach-card span {
+  color: var(--muted);
+  line-height: 1.7;
 }
 
 .import-box {

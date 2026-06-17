@@ -2790,6 +2790,77 @@ function learningBoost(userId, report) {
     steps: ["別年度を20問解く", "CSVを追加", "苦手が増えていないか確認"]
   };
 }
+
+function studentCoachPanel(userId, report) {
+  const domains = report.domains || [];
+  const weakDomain = domains
+    .filter((domain) => domain.total > 0)
+    .sort((a, b) => a.accuracy - b.accuracy || b.total - a.total)[0];
+  const missingDomain = domains.find((domain) => domain.total === 0);
+  const urgentDomain = domains.find((domain) => domain.total >= 3 && domain.accuracy < 30);
+  const weakCategory = report.weak?.[0];
+  const wrongRows = wrongProblemRows(userId);
+  const targetName = urgentDomain?.domain || weakCategory?.name || weakDomain?.domain || missingDomain?.domain || "過去問";
+  const targetUrl = firstWrongLink(userId, targetName) || wrongRows[0]?.sourceUrl || "https://www.itpassportsiken.com/";
+
+  const cards = [
+    {
+      title: urgentDomain ? `${urgentDomain.domain}を最優先` : missingDomain ? `${missingDomain.domain}のデータを追加` : weakCategory ? `${weakCategory.name}を復習` : "CSVを追加",
+      detail: urgentDomain
+        ? "分野別の30%目安を下回っています。ここを先に戻すと、合格条件に近づきます。"
+        : missingDomain
+          ? "まだ解いた記録がない分野です。10問だけ解くと分析の穴が埋まります。"
+          : weakCategory
+            ? "間違いが集まっている小分類です。似た問題で再発しやすいので優先します。"
+            : "過去問道場のCSVを追加すると、次の復習先がはっきりします。",
+      action: "過去問道場で開く",
+      url: targetUrl
+    },
+    {
+      title: report.total < 50 ? "まず50問まで蓄積" : "別年度で確認",
+      detail: report.total < 50
+        ? `現在は${report.total}問です。50問を超えると、苦手分野の判断がかなり安定します。`
+        : "同じ分野だけでなく別年度を混ぜると、本当に理解できているか確認できます。",
+      action: "CSVアップロードへ",
+      view: "upload"
+    },
+    {
+      title: report.accuracy >= 60 ? "60%は見えている" : "全体60%へ近づける",
+      detail: report.accuracy >= 60
+        ? "全体正答率は合格目安に届いています。次は各分野30%未満を作らないことが大切です。"
+        : `全体正答率は${pct(report.accuracy)}です。弱い小分類を短く回す方が点数につながります。`,
+      action: "分析を確認",
+      anchor: "coach"
+    }
+  ];
+
+  const dataMessage = report.total < 20
+    ? "まだ分析の材料が少なめです。最初は正答率よりも、CSVを増やして苦手を見える化することを優先します。"
+    : report.total < 80
+      ? "データが増えてきています。分野別・小分類別の偏りが見え始める段階です。"
+      : "十分にデータが蓄積されています。ここからは低い分野を狙って復習するほど効率が上がります。";
+
+  return `
+    <section class="panel coach-panel" id="coach">
+      <div class="panel-header">
+        <h2 class="panel-title">学習コーチ</h2>
+        <span class="tag green">過去問道場アシスト</span>
+      </div>
+      <div class="panel-body">
+        <p class="coach-lead">${dataMessage}</p>
+        <div class="coach-cards">
+          ${cards.map((card) => `
+            <div class="coach-card">
+              <strong>${escapeHtml(card.title)}</strong>
+              <span>${escapeHtml(card.detail)}</span>
+              ${card.url ? `<a class="button secondary full" href="${escapeHtml(card.url)}" target="_blank" rel="noopener">${escapeHtml(card.action)}</a>` : `<button class="button secondary full" data-view="${escapeHtml(card.view || "home")}">${escapeHtml(card.action)}</button>`}
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    </section>
+  `;
+}
 function studentHome() {
   const user = currentUser();
   const report = pastResultSummary(user.id);
@@ -2842,6 +2913,8 @@ function studentHome() {
             </div>
           </div>
         </section>
+
+        ${studentCoachPanel(user.id, report)}
 
         <section class="panel roadmap-panel">
           <div class="panel-header"><h2 class="panel-title">合格ロードマップ</h2></div>
@@ -4219,7 +4292,7 @@ function renderPasswordRecovery(message = "") {
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js?v=20260617-teacher-control-hold", { updateViaCache: "none" })
+    navigator.serviceWorker.register("./sw.js?v=20260617-student-coach", { updateViaCache: "none" })
       .then((registration) => registration.update())
       .catch(() => {});
   });
