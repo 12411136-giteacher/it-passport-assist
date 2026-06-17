@@ -2443,8 +2443,65 @@ function isTeacherControlActive() {
     Boolean(active?.closest?.("[data-student-filter], [data-student-filter-choice], .student-filter-panel, #teacher-message-form, .management-toolbar"));
 }
 
+function csvCell(value) {
+  const text = String(value ?? "");
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
+function downloadUtf8Csv(filename, headers, rows) {
+  const csv = [
+    headers.map(csvCell).join(","),
+    ...rows.map((row) => headers.map((header) => csvCell(row[header])).join(","))
+  ].join("\r\n");
+  const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function teacherStudentExportData(row) {
+  const { user, upload, analysis, weakDomain } = row;
+  const status = !upload.hasUpload ? "未提出" : row.stale ? "更新停止" : row.needsFollow ? "要フォロー" : "順調";
+  const action = !upload.hasUpload ? "CSV提出を案内"
+    : row.lowData ? "20問まで演習"
+    : row.belowDomains.length ? `${row.belowDomains[0].domain}を優先`
+    : analysis.accuracy < 60 ? `${weakDomain?.domain || "苦手分野"}を復習`
+    : "別年度で確認";
+  return {
+    "状態": status,
+    "クラス": user.classId,
+    "番号": user.seatNo,
+    "氏名": user.name,
+    "ニックネーム": user.username || "",
+    "メール": user.email || "",
+    "最終CSV": upload.latestUpload ? formatDateTime(upload.latestUpload) : "",
+    "CSV取込回数": upload.uploadCount,
+    "取込問題数": upload.total,
+    "正答率": upload.total ? pct(analysis.accuracy) : "",
+    "苦手": weakDomain ? `${weakDomain.domain} ${pct(weakDomain.accuracy)}` : "",
+    "次の対応": action
+  };
+}
+
+function downloadTeacherStudentsCsv() {
+  const headers = ["状態", "クラス", "番号", "氏名", "ニックネーム", "メール", "最終CSV", "CSV取込回数", "取込問題数", "正答率", "苦手", "次の対応"];
+  const rows = filteredStudents().map(teacherStudentExportData);
+  const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  downloadUtf8Csv(`student-analysis-${stamp}.csv`, headers, rows);
+}
+
 function bindTeacher() {
   upgradeTeacherStudentFilterSelects();
+
+  const studentActions = document.querySelector(".teacher-student-table")?.closest(".panel")?.querySelector(".panel-actions");
+  if (studentActions && !studentActions.querySelector("[data-download-students]")) {
+    studentActions.insertAdjacentHTML("afterbegin", `<button class="button secondary" data-download-students type="button">CSVダウンロード</button>`);
+  }
 
   document.querySelectorAll("[data-student-filter], [data-student-filter-choice], #teacher-message-form select, #teacher-message-form input, #teacher-message-form textarea").forEach((control) => {
     control.addEventListener("pointerdown", holdTeacherControls);
@@ -2488,6 +2545,10 @@ function bindTeacher() {
     } catch (error) {
       alert(`学生一覧の再読み込みに失敗しました。\n${error.message}`);
     }
+  });
+
+  document.querySelector("[data-download-students]")?.addEventListener("click", () => {
+    downloadTeacherStudentsCsv();
   });
 
   document.querySelectorAll("[data-question-filter]").forEach((input) => {
@@ -4292,7 +4353,7 @@ function renderPasswordRecovery(message = "") {
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js?v=20260617-student-coach", { updateViaCache: "none" })
+    navigator.serviceWorker.register("./sw.js?v=20260617-teacher-csv-export", { updateViaCache: "none" })
       .then((registration) => registration.update())
       .catch(() => {});
   });

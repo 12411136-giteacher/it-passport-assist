@@ -1,4 +1,4 @@
-const CACHE_NAME = "it-passport-student-coach-v1";
+const CACHE_NAME = "it-passport-teacher-csv-export-v1";
 const STATIC_ASSETS = [
   "./manifest.webmanifest",
   "./icons/icon-192.svg",
