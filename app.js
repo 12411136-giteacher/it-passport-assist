@@ -187,6 +187,7 @@ let currentUserId = localStorage.getItem("currentUserId") || sessionStorage.getI
 let currentView = "home";
 let teacherClassFilter = "A1A";
 let studentListFilter = { classId: "A1A", status: "all", query: "" };
+let studentHomeMode = localStorage.getItem("studentHomeMode") || "focus";
 let questionFilter = { year: "all", domain: "all", query: "" };
 let practicePicker = "yearly";
 let teacherDataLoadedAt = 0;
@@ -194,6 +195,7 @@ let teacherQuestionsLoadedAt = 0;
 let questionPage = 1;
 let importState = { running: false, total: 0, done: 0 };
 let reportImportState = { running: false, total: 0, done: 0, label: "" };
+let studentSyncState = { running: false, message: "", kind: "" };
 let quiz = null;
 
 function addHours(date, hours) {
@@ -1271,6 +1273,36 @@ function helpTh(label, detail) {
   `;
 }
 
+function inlineHelp(label, detail) {
+  return `
+    <span class="inline-help" tabindex="0" aria-label="${escapeHtml(label)}: ${escapeHtml(detail)}">
+      ${escapeHtml(label)}
+      <span class="help-dot">?</span>
+      <span class="tooltip" role="tooltip">${escapeHtml(detail)}</span>
+    </span>
+  `;
+}
+
+function studentModeToggle() {
+  const modes = [
+    ["focus", "今日だけ", "最初に見るべき内容だけ表示します。迷ったらこの表示でOKです。"],
+    ["analysis", "分析", "伸び率、定着率、合格ラインなど学習状況を確認します。"],
+    ["detail", "詳細", "苦手分野、間違えた問題、ロードマップまでまとめて確認します。"]
+  ];
+  return `
+    <div class="student-mode-panel">
+      <div>
+        <p class="filter-label">${inlineHelp("表示モード", "情報量を切り替えます。普段は「今日だけ」、振り返りたい時は「分析」や「詳細」を使います。")}</p>
+      </div>
+      <div class="filter-chip-row">
+        ${modes.map(([value, label, help]) => `
+          <button class="filter-chip ${studentHomeMode === value ? "active" : ""}" type="button" data-student-home-mode="${value}" title="${escapeHtml(help)}">${escapeHtml(label)}</button>
+        `).join("")}
+      </div>
+    </div>
+  `;
+}
+
 function actionTile(mode, title, detail) {
   return `<button class="action-tile" data-start-mode="${mode}"><strong>${title}</strong><span>${detail}</span></button>`;
 }
@@ -1380,22 +1412,22 @@ function studentProgressPanel(userId) {
   return `
     <section class="panel progress-panel">
       <div class="panel-header">
-        <h2 class="panel-title">伸び率・定着率</h2>
+        <h2 class="panel-title">${inlineHelp("伸び率・定着率", "直近の正答率が上がっているか、一度解いた内容を後で正解できているかを見る指標です。")}</h2>
         <span class="tag">${trend.recent7Count}問 / 直近7日</span>
       </div>
       <div class="panel-body progress-grid">
         <div class="progress-card">
-          <span>直近の伸び率</span>
+          <span>${inlineHelp("直近の伸び率", "直近20問の正答率から、その前20問の正答率を引いた値です。プラスなら最近伸びています。")}</span>
           <strong class="${trend.growth !== null && trend.growth < 0 ? "down" : "up"}">${growthText}</strong>
           <p>${growthNote}</p>
         </div>
         <div class="progress-card">
-          <span>学習定着率</span>
+          <span>${inlineHelp("学習定着率", "同じ問題や同じ出典を解き直したとき、最後に正解できている割合です。復習の成果を見ます。")}</span>
           <strong>${retentionText}</strong>
           <p>${retentionNote}</p>
         </div>
         <div class="progress-card">
-          <span>直近20問の正答率</span>
+          <span>${inlineHelp("直近20問の正答率", "最新のCSVから、直近20問だけを使って今の調子を見ます。全期間の平均より変化に気づきやすい指標です。")}</span>
           <strong>${trend.recentCount ? pct(trend.recentAccuracy) : "-"}</strong>
           <p>最新のCSVデータから、今の調子を見ています。</p>
         </div>
@@ -2603,6 +2635,27 @@ function downloadTeacherStudentsCsv() {
   downloadUtf8Csv(`student-analysis-${stamp}.csv`, headers, rows);
 }
 
+function studentSyncPanel(userId) {
+  const localCount = userPastResults(userId).length;
+  const message = studentSyncState.message || (USE_REMOTE_API
+    ? "CSVデータは管理者画面へ同期されます。反映されない場合は再同期を押してください。"
+    : "現在は端末内保存です。管理者画面には反映されません。");
+  return `
+    <section class="panel sync-panel ${studentSyncState.kind || ""}">
+      <div class="panel-body sync-panel-body">
+        <div>
+          <strong>${inlineHelp("同期状態", "学生画面のCSVデータがSupabaseへ保存されると、管理者画面にも反映されます。古い端末内データがある場合は再同期で送り直します。")}</strong>
+          <p>${escapeHtml(message)}</p>
+          <span class="hint">この端末のCSVデータ: ${localCount}件</span>
+        </div>
+        <button class="button secondary" type="button" data-sync-past-results ${studentSyncState.running ? "disabled" : ""}>
+          ${studentSyncState.running ? "同期中..." : "管理者画面へ再同期"}
+        </button>
+      </div>
+    </section>
+  `;
+}
+
 async function syncLocalPastResultsToRemote(userId, { force = false } = {}) {
   if (!USE_REMOTE_API || !userId || pastResultSyncRunning) return false;
   if (!force && pastResultSyncDoneFor === userId) return false;
@@ -2613,6 +2666,7 @@ async function syncLocalPastResultsToRemote(userId, { force = false } = {}) {
   }
 
   pastResultSyncRunning = true;
+  studentSyncState = { running: true, message: "CSVデータを管理者画面へ同期しています。", kind: "" };
   try {
     for (let i = 0; i < localRows.length; i += 50) {
       const chunk = localRows.slice(i, i + 50).map(localPastResultToRemote);
@@ -2622,9 +2676,11 @@ async function syncLocalPastResultsToRemote(userId, { force = false } = {}) {
     mergePastResults((latest.results || []).map(remotePastResultToLocal));
     pastResultSyncDoneFor = userId;
     saveState();
+    studentSyncState = { running: false, message: "同期済みです。管理者画面で「最新情報に更新」を押すと反映されます。", kind: "success" };
     return true;
   } catch (error) {
     console.warn("past result sync failed", error);
+    studentSyncState = { running: false, message: `同期に失敗しました。通信状況を確認して再同期してください。${error.message ? ` ${error.message}` : ""}`, kind: "error" };
     return false;
   } finally {
     pastResultSyncRunning = false;
@@ -3068,8 +3124,9 @@ function studentHome() {
   const report = pastResultSummary(user.id);
   const plan = buildReportPlan(user.id, report);
   const boost = learningBoost(user.id, report);
+  const modeClass = `student-mode-${studentHomeMode}`;
   return `
-    <section class="student-home analysis-home">
+    <section class="student-home analysis-home ${modeClass}">
       ${studentMessagePanel(user.id)}
       <div class="mission-hero analysis-hero">
         <div class="mission-copy">
@@ -3092,6 +3149,8 @@ function studentHome() {
       </div>
 
       ${reportImportProgress()}
+      ${studentSyncPanel(user.id)}
+      ${studentModeToggle()}
 
       <div class="analysis-grid">
         <section class="panel boost-panel">
@@ -3188,6 +3247,7 @@ function studentHome() {
 }
 
 function studentUploadGuide() {
+  const user = currentUser();
   return `
     <section class="student-page">
       <div class="panel upload-guide-panel">
@@ -3203,6 +3263,7 @@ function studentUploadGuide() {
             <input type="file" data-past-report-file accept=".csv,text/csv">
           </label>
           ${reportImportProgress()}
+          ${user ? studentSyncPanel(user.id) : ""}
           <p class="hint">CSVを選ぶだけで、苦手分野・正答率・復習する問題が自動で更新されます。</p>
         </div>
       </div>
@@ -3373,9 +3434,22 @@ function bindStudent() {
   document.querySelectorAll("[data-past-report-file]").forEach((input) => {
     input.addEventListener("change", importPastReportFile);
   });
+  document.querySelector("[data-sync-past-results]")?.addEventListener("click", async () => {
+    const user = currentUser();
+    if (!user) return;
+    await syncLocalPastResultsToRemote(user.id, { force: true });
+    render();
+  });
   document.querySelectorAll("[data-view]").forEach((button) => {
     button.addEventListener("click", () => {
       currentView = button.dataset.view;
+      render();
+    });
+  });
+  document.querySelectorAll("[data-student-home-mode]").forEach((button) => {
+    button.addEventListener("click", () => {
+      studentHomeMode = button.dataset.studentHomeMode;
+      localStorage.setItem("studentHomeMode", studentHomeMode);
       render();
     });
   });
@@ -4496,7 +4570,7 @@ function renderPasswordRecovery(message = "") {
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js?v=20260619-student-progress", { updateViaCache: "none" })
+    navigator.serviceWorker.register("./sw.js?v=20260619-student-resync", { updateViaCache: "none" })
       .then((registration) => registration.update())
       .catch(() => {});
   });
