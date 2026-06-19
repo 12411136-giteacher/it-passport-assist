@@ -191,7 +191,8 @@ async function backendRequest(action, payload = {}) {
       throw new Error("本人の学習履歴だけ取得できます。");
     }
     const data = await request(
-      `/rest/v1/past_results?user_id=eq.${encodeURIComponent(session.user.id)}&select=*`
+      `/rest/v1/past_results?user_id=eq.${encodeURIComponent(session.user.id)}&select=*&order=uploaded_at.desc`,
+      { headers: { Range: "0-9999" } }
     );
     return { ok: true, results: data.map(toPastResult) };
   }
@@ -199,7 +200,7 @@ async function backendRequest(action, payload = {}) {
   if (action === "getTeacherData") {
     const [profiles, results, messages] = await Promise.all([
       request("/rest/v1/profiles?select=*&order=class_id.asc,seat_no.asc"),
-      request("/rest/v1/past_results?select=*"),
+      request("/rest/v1/past_results?select=*&order=uploaded_at.desc", { headers: { Range: "0-99999" } }),
       request("/rest/v1/messages?select=*&order=created_at.desc")
     ]);
     return {

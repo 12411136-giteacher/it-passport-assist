@@ -1474,6 +1474,7 @@ button {
 @media (max-width: 760px) {
   .analysis-grid,
   .upload-steps,
+  .progress-grid,
   .coach-cards {
     grid-template-columns: 1fr;
   }
@@ -1663,6 +1664,50 @@ button {
 .roadmap-item span {
   color: var(--muted);
   font-weight: 700;
+}
+
+.progress-panel {
+  grid-column: 1 / -1;
+}
+
+.progress-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.progress-card {
+  background: #fbfdfc;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  min-height: 150px;
+  padding: 14px;
+}
+
+.progress-card span {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.progress-card strong {
+  font-size: 30px;
+  line-height: 1;
+}
+
+.progress-card strong.up {
+  color: var(--primary);
+}
+
+.progress-card strong.down {
+  color: var(--danger);
+}
+
+.progress-card p {
+  color: var(--muted);
+  line-height: 1.7;
+  margin: 0;
 }
 
 .coach-panel {

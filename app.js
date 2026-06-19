@@ -339,6 +339,12 @@ async function loadTeacherData(force = false) {
   return true;
 }
 
+async function forceReloadTeacherDataAndRender() {
+  teacherDataLoadedAt = 0;
+  await loadTeacherData(true);
+  render();
+}
+
 function remoteAnswerToLocal(answer) {
   return {
     id: answer.answer_id,
@@ -1298,6 +1304,106 @@ function pastResultSummary(userId) {
   };
 }
 
+function resultTimeValue(row) {
+  const date = new Date(row.studiedAt || row.uploadedAt || 0);
+  return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+}
+
+function resultAccuracy(rows) {
+  if (!rows.length) return 0;
+  return (rows.filter((row) => row.isCorrect).length / rows.length) * 100;
+}
+
+function studentGrowthAndRetention(userId) {
+  const rows = userPastResults(userId)
+    .filter((row) => row.studiedAt || row.uploadedAt)
+    .sort((a, b) => resultTimeValue(a) - resultTimeValue(b));
+  const recent = rows.slice(-20);
+  const previous = rows.slice(-40, -20);
+  const recentAccuracy = resultAccuracy(recent);
+  const previousAccuracy = resultAccuracy(previous);
+  const growth = previous.length >= 5 ? recentAccuracy - previousAccuracy : null;
+  const now = Date.now();
+  const recent7 = rows.filter((row) => {
+    const time = resultTimeValue(row);
+    return time && now - time <= 7 * 24 * 60 * 60 * 1000;
+  });
+
+  const repeated = new Map();
+  rows.forEach((row) => {
+    const key = [
+      row.sourceUrl || row.sourceLabel || "",
+      row.no || "",
+      row.middleCategory || row.majorCategory || row.domain || ""
+    ].join("|");
+    if (!key.trim()) return;
+    const list = repeated.get(key) || [];
+    list.push(row);
+    repeated.set(key, list);
+  });
+  const repeatedGroups = [...repeated.values()].filter((list) => list.length >= 2);
+  const retained = repeatedGroups.filter((list) => list.at(-1)?.isCorrect).length;
+  const retention = repeatedGroups.length ? (retained / repeatedGroups.length) * 100 : null;
+
+  return {
+    total: rows.length,
+    recentCount: recent.length,
+    previousCount: previous.length,
+    recentAccuracy,
+    previousAccuracy,
+    growth,
+    recent7Count: recent7.length,
+    retention,
+    repeatedCount: repeatedGroups.length
+  };
+}
+
+function signedPoint(value) {
+  if (value === null || value === undefined) return "-";
+  const rounded = Math.round(value);
+  return `${rounded > 0 ? "+" : ""}${rounded}pt`;
+}
+
+function studentProgressPanel(userId) {
+  const trend = studentGrowthAndRetention(userId);
+  const growthText = trend.growth === null ? "比較データ不足" : signedPoint(trend.growth);
+  const growthNote = trend.growth === null
+    ? "直近20問とその前20問がそろうと、伸び率を表示します。"
+    : trend.growth >= 0
+      ? "直近の正答率が前回より上がっています。この調子でCSVを追加しましょう。"
+      : "直近の正答率が下がっています。苦手分野を短く復習すると戻しやすいです。";
+  const retentionText = trend.retention === null ? "復習データ不足" : pct(trend.retention);
+  const retentionNote = trend.retention === null
+    ? "同じ問題や同じ出典を解き直すと、定着率が表示されます。"
+    : "一度解いた内容を、あとで正解できているかを見ています。";
+
+  return `
+    <section class="panel progress-panel">
+      <div class="panel-header">
+        <h2 class="panel-title">伸び率・定着率</h2>
+        <span class="tag">${trend.recent7Count}問 / 直近7日</span>
+      </div>
+      <div class="panel-body progress-grid">
+        <div class="progress-card">
+          <span>直近の伸び率</span>
+          <strong class="${trend.growth !== null && trend.growth < 0 ? "down" : "up"}">${growthText}</strong>
+          <p>${growthNote}</p>
+        </div>
+        <div class="progress-card">
+          <span>学習定着率</span>
+          <strong>${retentionText}</strong>
+          <p>${retentionNote}</p>
+        </div>
+        <div class="progress-card">
+          <span>直近20問の正答率</span>
+          <strong>${trend.recentCount ? pct(trend.recentAccuracy) : "-"}</strong>
+          <p>最新のCSVデータから、今の調子を見ています。</p>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
 function studyAdvice(summary) {
   if (!summary.total) return "まずは過去問道場で10問以上解いて、CSVをアップロードしましょう。分析はアップロード後に表示されます。";
   const lowDomain = summary.domains.find((domain) => domain.total >= 3 && domain.accuracy < 30);
@@ -2242,7 +2348,7 @@ async function importPastReportFile(event) {
           render();
         }
       } catch (error) {
-        console.warn("savePastResults failed; using local results", error);
+        throw new Error(`Supabaseへの保存に失敗しました。管理者画面に反映されないため、通信状況を確認してもう一度アップロードしてください。\n${error.message}`);
         reportImportState.done = results.length;
         reportImportState.label = "画面内に取り込みました。スプレッドシート保存は未確認です。";
         showReportImportOverlay(results.length, results.length, "画面内に取り込みました。分析を更新しています。");
@@ -2432,6 +2538,8 @@ function upgradeTeacherStudentFilterSelects() {
 }
 
 let teacherControlHoldUntil = 0;
+let pastResultSyncRunning = false;
+let pastResultSyncDoneFor = "";
 
 function holdTeacherControls() {
   teacherControlHoldUntil = Date.now() + 1800;
@@ -2495,6 +2603,34 @@ function downloadTeacherStudentsCsv() {
   downloadUtf8Csv(`student-analysis-${stamp}.csv`, headers, rows);
 }
 
+async function syncLocalPastResultsToRemote(userId, { force = false } = {}) {
+  if (!USE_REMOTE_API || !userId || pastResultSyncRunning) return false;
+  if (!force && pastResultSyncDoneFor === userId) return false;
+  const localRows = userPastResults(userId);
+  if (!localRows.length) {
+    pastResultSyncDoneFor = userId;
+    return false;
+  }
+
+  pastResultSyncRunning = true;
+  try {
+    for (let i = 0; i < localRows.length; i += 50) {
+      const chunk = localRows.slice(i, i + 50).map(localPastResultToRemote);
+      await apiRequest("savePastResults", { user_id: userId, results: chunk });
+    }
+    const latest = await apiRequest("getPastResults", { user_id: userId });
+    mergePastResults((latest.results || []).map(remotePastResultToLocal));
+    pastResultSyncDoneFor = userId;
+    saveState();
+    return true;
+  } catch (error) {
+    console.warn("past result sync failed", error);
+    return false;
+  } finally {
+    pastResultSyncRunning = false;
+  }
+}
+
 function bindTeacher() {
   upgradeTeacherStudentFilterSelects();
 
@@ -2540,8 +2676,7 @@ function bindTeacher() {
 
   document.querySelector("[data-refresh-students]")?.addEventListener("click", async () => {
     try {
-      await loadTeacherData(true);
-      render();
+      await forceReloadTeacherDataAndRender();
     } catch (error) {
       alert(`学生一覧の再読み込みに失敗しました。\n${error.message}`);
     }
@@ -2771,6 +2906,12 @@ function makeQuestionId(year, questionNo) {
 function renderStudent() {
   if (!["home", "upload", "profile"].includes(currentView)) currentView = "home";
   loadStudentMessages();
+  const user = currentUser();
+  if (user) {
+    syncLocalPastResultsToRemote(user.id).then((synced) => {
+      if (synced && currentUser()?.id === user.id) render();
+    });
+  }
   const nav = `
     <div class="nav-tabs student-analysis-tabs">
       ${tab("home", "分析")}
@@ -2974,6 +3115,8 @@ function studentHome() {
             </div>
           </div>
         </section>
+
+        ${studentProgressPanel(user.id)}
 
         ${studentCoachPanel(user.id, report)}
 
@@ -3396,7 +3539,7 @@ async function importPastReportFile(event) {
           showReportImportOverlay(results.length, reportImportState.done, "学習データを保存しています。");
         }
       } catch (error) {
-        console.warn("savePastResults failed; using local results", error);
+        throw new Error(`Supabaseへの保存に失敗しました。管理者画面に反映されないため、通信状況を確認してもう一度アップロードしてください。\n${error.message}`);
       }
       mergePastResults(saved.length ? saved : results);
     } else {
@@ -4353,7 +4496,7 @@ function renderPasswordRecovery(message = "") {
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js?v=20260617-teacher-csv-export", { updateViaCache: "none" })
+    navigator.serviceWorker.register("./sw.js?v=20260619-student-progress", { updateViaCache: "none" })
       .then((registration) => registration.update())
       .catch(() => {});
   });
