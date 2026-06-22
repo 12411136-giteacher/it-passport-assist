@@ -1488,6 +1488,25 @@ button {
     grid-template-columns: 1fr;
   }
 
+  .teacher-sync-note {
+    grid-template-columns: 1fr;
+  }
+
+  .midterm-summary,
+  .midterm-domain-grid,
+  .midterm-class-grid,
+  .midterm-ranking-list {
+    grid-template-columns: 1fr;
+  }
+
+  .midterm-rank-row {
+    grid-template-columns: 46px minmax(0, 1fr);
+  }
+
+  .midterm-rank-row small {
+    grid-column: 2;
+  }
+
   .student-mode-panel .filter-chip-row {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1627,6 +1646,30 @@ button {
 .sync-panel-body p {
   color: var(--muted);
   margin: 6px 0;
+}
+
+.teacher-sync-note {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 14px;
+  border: 1px solid #d8e6e3;
+  border-radius: 8px;
+  background: #f7fbfa;
+}
+
+.teacher-sync-note strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--primary-dark);
+}
+
+.teacher-sync-note p {
+  margin: 0 0 6px;
+  color: var(--muted);
+  line-height: 1.7;
 }
 
 .inline-help {
@@ -1797,6 +1840,120 @@ button {
   color: var(--muted);
   line-height: 1.7;
   margin: 0;
+}
+
+.midterm-panel {
+  grid-column: 1 / -1;
+}
+
+.midterm-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(240px, 0.8fr);
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.midterm-focus,
+.midterm-self,
+.midterm-domain-grid > div,
+.midterm-class-grid > div,
+.midterm-rank-row {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfdfc;
+}
+
+.midterm-focus,
+.midterm-self {
+  padding: 14px;
+}
+
+.midterm-focus strong,
+.midterm-self strong {
+  display: block;
+  margin: 6px 0;
+  font-size: 20px;
+}
+
+.midterm-focus p,
+.midterm-self p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.midterm-domain-grid,
+.midterm-class-grid {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.midterm-domain-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.midterm-class-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.midterm-domain-grid > div,
+.midterm-class-grid > div {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+}
+
+.midterm-class-grid > div.current {
+  border-color: #b9e5cf;
+  background: #f4fbf7;
+}
+
+.midterm-domain-grid strong {
+  font-size: 22px;
+}
+
+.midterm-domain-grid small,
+.midterm-class-grid small,
+.midterm-rank-row small {
+  color: var(--muted);
+}
+
+.midterm-ranking {
+  margin-top: 16px;
+}
+
+.midterm-ranking-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.midterm-ranking-list {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.midterm-rank-row {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+}
+
+.midterm-rank-row.me {
+  border-color: var(--accent);
+  background: #fff9e8;
+}
+
+.midterm-rank-row strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .coach-panel {

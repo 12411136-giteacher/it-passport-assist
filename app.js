@@ -198,6 +198,52 @@ let reportImportState = { running: false, total: 0, done: 0, label: "" };
 let studentSyncState = { running: false, message: "", kind: "" };
 let quiz = null;
 
+const qualificationMidterm = {
+  title: "資格対策I 中間テスト",
+  totalScore: 35,
+  domains: [
+    { name: "ストラテジ系", average: 16.2, max: 20, rate: 80.9 },
+    { name: "マネジメント系", average: 11.1, max: 15, rate: 73.9 },
+    { name: "合計", average: 28.6, max: 35, rate: 81.7 }
+  ],
+  classes: [
+    { classId: "A1A", total: 29.9, strategy: 17.1, management: 12.8 },
+    { classId: "A1D", total: 29.1, strategy: 16.6, management: 12.5 },
+    { classId: "A1C", total: 28.0, strategy: 16.0, management: 12.0 },
+    { classId: "A1B", total: 27.2, strategy: 15.5, management: 11.6 }
+  ],
+  ranking: [
+    { rank: 1, score: 35, classId: "A1B", sourceName: "おどすざく" },
+    { rank: 1, score: 35, classId: "A1A", sourceName: "浜元盛嵩" },
+    { rank: 1, score: 35, classId: "A1A", sourceName: "いなふくあや" },
+    { rank: 1, score: 35, classId: "A1A", sourceName: "きんじょうりゅうと" },
+    { rank: 1, score: 35, classId: "A1A", sourceName: "新垣雄大" },
+    { rank: 1, score: 35, classId: "A1A", sourceName: "よなはゆうと" },
+    { rank: 1, score: 35, classId: "A1A", sourceName: "池田涼真" },
+    { rank: 1, score: 35, classId: "A1C", sourceName: "あらさきすずな" },
+    { rank: 9, score: 34, classId: "A1B", sourceName: "砂川夏樹" },
+    { rank: 9, score: 34, classId: "A1B", sourceName: "たましろりん" },
+    { rank: 9, score: 34, classId: "A1A", sourceName: "なかまつこうせい" },
+    { rank: 9, score: 34, classId: "A1A", sourceName: "しまぶくろさすけ" },
+    { rank: 9, score: 34, classId: "A1A", sourceName: "よなみねかい" },
+    { rank: 9, score: 34, classId: "A1A", sourceName: "うえはらすばる" },
+    { rank: 9, score: 34, classId: "A1D", sourceName: "かみやあさひ" },
+    { rank: 9, score: 34, classId: "A1D", sourceName: "とうばるけんご" },
+    { rank: 9, score: 34, classId: "A1D", sourceName: "かとうあすか" },
+    { rank: 9, score: 34, classId: "A1C", sourceName: "神里舜" },
+    { rank: 19, score: 33, classId: "A1B", sourceName: "山里結愛" },
+    { rank: 19, score: 33, classId: "A1A", sourceName: "ひがあやは" },
+    { rank: 19, score: 33, classId: "A1A", sourceName: "たもとあかり" },
+    { rank: 19, score: 33, classId: "A1C", sourceName: "とくながりゅうせい" },
+    { rank: 19, score: 33, classId: "A1D", sourceName: "とくざとせいれん" },
+    { rank: 19, score: 33, classId: "A1D", sourceName: "みやぎたかのり" },
+    { rank: 19, score: 33, classId: "A1C", sourceName: "村山綺一" },
+    { rank: 19, score: 33, classId: "A1D", sourceName: "伊佐真之丞" },
+    { rank: 19, score: 33, classId: "A1C", sourceName: "喜屋武和樹" },
+    { rank: 19, score: 33, classId: "A1C", sourceName: "こはまりお" }
+  ]
+};
+
 function addHours(date, hours) {
   return new Date(date.getTime() + hours * 60 * 60 * 1000);
 }
@@ -1430,6 +1476,95 @@ function studentProgressPanel(userId) {
           <span>${inlineHelp("直近20問の正答率", "最新のCSVから、直近20問だけを使って今の調子を見ます。全期間の平均より変化に気づきやすい指標です。")}</span>
           <strong>${trend.recentCount ? pct(trend.recentAccuracy) : "-"}</strong>
           <p>最新のCSVデータから、今の調子を見ています。</p>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function normalizeMatchName(value) {
+  return String(value || "").normalize("NFKC").replace(/[\s　]/g, "").toLowerCase();
+}
+
+function findStudentForExamRow(row) {
+  const target = normalizeMatchName(row.sourceName);
+  if (!target) return null;
+  return state.users.find((user) => {
+    if (user.role !== "student" || user.classId !== row.classId) return false;
+    return normalizeMatchName(user.name) === target || normalizeMatchName(user.username) === target;
+  }) || null;
+}
+
+function midtermRankingRows() {
+  return qualificationMidterm.ranking.map((row) => {
+    const user = findStudentForExamRow(row);
+    return {
+      ...row,
+      user,
+      displayName: user?.username || `匿名${row.rank}位`,
+      iconId: user?.iconId || "book"
+    };
+  });
+}
+
+function studentMidtermPanel(user) {
+  const ranking = midtermRankingRows();
+  const mine = ranking.find((row) => row.user?.id === user.id);
+  const myClass = qualificationMidterm.classes.find((row) => row.classId === user.classId);
+  return `
+    <section class="panel midterm-panel">
+      <div class="panel-header">
+        <h2 class="panel-title">${inlineHelp("資格対策I 中間テスト", "中間テストの結果を、実名ではなく登録済みのニックネームで表示します。分野別平均から、次に伸ばすべき分野を確認できます。")}</h2>
+        <span class="tag">35点満点</span>
+      </div>
+      <div class="panel-body">
+        <div class="midterm-summary">
+          <div class="midterm-focus">
+            <span class="metric-label">全体の注目ポイント</span>
+            <strong>マネジメント系を伸ばすと全体が上がりやすい</strong>
+            <p>ストラテジ系より約7%低いため、まずはマネジメント系の復習を優先すると効率よく底上げできます。</p>
+          </div>
+          <div class="midterm-self">
+            <span class="metric-label">あなたの順位</span>
+            <strong>${mine ? `${mine.rank}位 / ${mine.score}点` : "トップ30外または未照合"}</strong>
+            <p>${myClass ? `${escapeHtml(user.classId)}平均は${myClass.total.toFixed(1)}点です。` : "クラス平均と比べて、次の学習方針を確認しましょう。"}</p>
+          </div>
+        </div>
+
+        <div class="midterm-domain-grid">
+          ${qualificationMidterm.domains.map((domain) => `
+            <div>
+              <span>${escapeHtml(domain.name)}</span>
+              <strong>${domain.average.toFixed(1)}点</strong>
+              <small>${domain.max}点満点 / ${domain.rate.toFixed(1)}%</small>
+            </div>
+          `).join("")}
+        </div>
+
+        <div class="midterm-class-grid">
+          ${qualificationMidterm.classes.map((row) => `
+            <div class="${row.classId === user.classId ? "current" : ""}">
+              <strong>${escapeHtml(row.classId)}</strong>
+              <span>総合 ${row.total.toFixed(1)}点</span>
+              <small>ストラテジ ${row.strategy.toFixed(1)} / マネジメント ${row.management.toFixed(1)}</small>
+            </div>
+          `).join("")}
+        </div>
+
+        <div class="midterm-ranking">
+          <div class="midterm-ranking-head">
+            <strong>トップ30</strong>
+            <span class="hint">表示名はニックネームのみ</span>
+          </div>
+          <div class="midterm-ranking-list">
+            ${ranking.map((row) => `
+              <div class="midterm-rank-row ${row.user?.id === user.id ? "me" : ""}">
+                <span>${row.rank}位</span>
+                <strong>${escapeHtml(row.displayName)}</strong>
+                <small>${escapeHtml(row.classId)} / ${row.score}点</small>
+              </div>
+            `).join("")}
+          </div>
         </div>
       </div>
     </section>
@@ -2695,6 +2830,21 @@ function bindTeacher() {
     studentActions.insertAdjacentHTML("afterbegin", `<button class="button secondary" data-download-students type="button">CSVダウンロード</button>`);
   }
 
+  const studentPanelBody = document.querySelector(".teacher-student-table")?.closest(".panel")?.querySelector(".panel-body");
+  if (studentPanelBody && !studentPanelBody.querySelector("[data-teacher-sync-note]")) {
+    const refreshedAt = teacherDataLoadedAt ? formatDateTime(new Date(teacherDataLoadedAt).toISOString()) : "-";
+    studentPanelBody.insertAdjacentHTML("afterbegin", `
+      <div class="teacher-sync-note" data-teacher-sync-note>
+        <div>
+          <strong>CSV反映を更新</strong>
+          <p>学生がアップロード済みの学習データをSupabaseから読み直します。反映されない場合は、学生端末内にだけデータが残っている可能性があります。その場合も、学生がアプリを開くと自動同期を試します。</p>
+          <span class="hint">最終更新: ${escapeHtml(refreshedAt)}</span>
+        </div>
+        <button class="button secondary" type="button" data-force-teacher-refresh>今すぐ更新</button>
+      </div>
+    `);
+  }
+
   document.querySelectorAll("[data-student-filter], [data-student-filter-choice], #teacher-message-form select, #teacher-message-form input, #teacher-message-form textarea").forEach((control) => {
     control.addEventListener("pointerdown", holdTeacherControls);
     control.addEventListener("focus", holdTeacherControls);
@@ -2735,6 +2885,14 @@ function bindTeacher() {
       await forceReloadTeacherDataAndRender();
     } catch (error) {
       alert(`学生一覧の再読み込みに失敗しました。\n${error.message}`);
+    }
+  });
+
+  document.querySelector("[data-force-teacher-refresh]")?.addEventListener("click", async () => {
+    try {
+      await forceReloadTeacherDataAndRender();
+    } catch (error) {
+      alert(`CSV反映の更新に失敗しました。\n${error.message}`);
     }
   });
 
@@ -3149,7 +3307,6 @@ function studentHome() {
       </div>
 
       ${reportImportProgress()}
-      ${studentSyncPanel(user.id)}
       ${studentModeToggle()}
 
       <div class="analysis-grid">
@@ -3176,6 +3333,8 @@ function studentHome() {
         </section>
 
         ${studentProgressPanel(user.id)}
+
+        ${studentMidtermPanel(user)}
 
         ${studentCoachPanel(user.id, report)}
 
@@ -3247,7 +3406,6 @@ function studentHome() {
 }
 
 function studentUploadGuide() {
-  const user = currentUser();
   return `
     <section class="student-page">
       <div class="panel upload-guide-panel">
@@ -3263,7 +3421,6 @@ function studentUploadGuide() {
             <input type="file" data-past-report-file accept=".csv,text/csv">
           </label>
           ${reportImportProgress()}
-          ${user ? studentSyncPanel(user.id) : ""}
           <p class="hint">CSVを選ぶだけで、苦手分野・正答率・復習する問題が自動で更新されます。</p>
         </div>
       </div>
@@ -3433,12 +3590,6 @@ function bindStudent() {
   });
   document.querySelectorAll("[data-past-report-file]").forEach((input) => {
     input.addEventListener("change", importPastReportFile);
-  });
-  document.querySelector("[data-sync-past-results]")?.addEventListener("click", async () => {
-    const user = currentUser();
-    if (!user) return;
-    await syncLocalPastResultsToRemote(user.id, { force: true });
-    render();
   });
   document.querySelectorAll("[data-view]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -4570,7 +4721,7 @@ function renderPasswordRecovery(message = "") {
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js?v=20260619-student-resync", { updateViaCache: "none" })
+    navigator.serviceWorker.register("./sw.js?v=20260622-midterm-results", { updateViaCache: "none" })
       .then((registration) => registration.update())
       .catch(() => {});
   });
